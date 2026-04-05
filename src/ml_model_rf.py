@@ -85,7 +85,7 @@ def train_model():
     # نستخدم rolling window للحفاظ على الترتيب الزمني
     # ==========================================
     print("=" * 50)
-    print("  ROLLING WINDOW CROSS-VALIDATION")
+    print("  ROLLING WINDOW ")
     print("=" * 50)
 
     n_splits = 5
