@@ -19,32 +19,26 @@ except ModuleNotFoundError:
     st.stop()
 
 # === UI Configuration ===
-st.set_page_config(page_title="Tadawul Risk AI", page_icon="📈", layout="centered")
-
+st.set_page_config(page_title="Riskless Asset Management", page_icon="📈", layout="centered")
 
 # ============================================================
-# MODEL REGISTRY — الثلاث موديلات الجديدة
+# LOGO INJECTION
+# ============================================================
+# Create 3 columns to center the image. 
+# Make sure your image is saved as 'logo.png' in the same folder as app.py
+col1, col2, col3 = st.columns([1, 2, 1])
+with col2:
+    logo_path = os.path.join(BASE_DIR, "logo.png")
+    if os.path.exists(logo_path):
+        st.image(logo_path, use_container_width=True)
+    else:
+        st.warning("⚠️ Please save your image as 'logo.png' in the same folder to see it here.")
+
+# ============================================================
+# MODEL REGISTRY — SVM Only
 # ============================================================
 
 MODELS = {
-    "Random Forest": {
-        "type"    : "rf",
-        "model"   : "rf_rolling_window.pkl",
-        "scaler"  : None,
-        "encoder" : None,
-        "color"   : "#3b82f6",
-        "icon"    : "🌲",
-        "desc"    : "Random Forest · Rolling Window",
-    },
-    "LSTM": {
-        "type"    : "lstm",
-        "model"   : "lstm_rolling_window.keras",
-        "scaler"  : "lstm_scaler.pkl",
-        "encoder" : "lstm_label_encoder.pkl",
-        "color"   : "#a78bfa",
-        "icon"    : "🧠",
-        "desc"    : "LSTM Neural Network · Rolling Window",
-    },
     "SVM": {
         "type"    : "svm",
         "model"   : "svm_rolling_window.pkl",
@@ -63,7 +57,7 @@ MODELS = {
 
 @st.cache_resource(show_spinner=False)
 def load_model_artifacts(model_name: str):
-    """يحمّل ملفات المودل المختار (model + scaler + encoder)."""
+    """Loads the selected model files (model + scaler + encoder)."""
     info       = MODELS[model_name]
     models_dir = os.path.join(BASE_DIR, "models")
     model_path = os.path.join(models_dir, info["model"])
@@ -71,15 +65,7 @@ def load_model_artifacts(model_name: str):
     if not os.path.exists(model_path):
         return None, None, None
 
-    mtype = info["type"]
-
-    if mtype == "lstm":
-        os.environ['TF_CPP_MIN_LOG_LEVEL'] = '2'
-        from tensorflow.keras.models import load_model
-        model = load_model(model_path)
-    else:
-        model = joblib.load(model_path)
-
+    model = joblib.load(model_path)
     scaler  = joblib.load(os.path.join(models_dir, info["scaler"]))  if info["scaler"]  and os.path.exists(os.path.join(models_dir, info["scaler"]))  else None
     encoder = joblib.load(os.path.join(models_dir, info["encoder"])) if info["encoder"] and os.path.exists(os.path.join(models_dir, info["encoder"])) else None
 
@@ -162,30 +148,11 @@ def fetch_and_calculate(tickers_tuple, weights_tuple):
 
 
 def ai_predict(model_name, model, scaler, encoder, feature_values):
-    """يُنفّذ التنبؤ حسب نوع المودل ويرجع (category, prob_dict)."""
+    """Executes the SVM prediction."""
     mtype   = MODELS[model_name]["type"]
     X_raw   = np.array(feature_values).reshape(1, -1)
 
-    if mtype == "rf":
-        input_df    = pd.DataFrame(X_raw, columns=[
-            'Portfolio_Volatility','Portfolio_Beta',
-            'Sector_Volatility','Sector_Beta',
-            'Diversification_Index','Market_Cap_Score',
-        ])
-        ai_category = model.predict(input_df)[0]
-        probs       = model.predict_proba(input_df)[0]
-        prob_dict   = {c: round(p * 100) for c, p in zip(model.classes_, probs)}
-
-    elif mtype == "lstm":
-        X_scaled    = scaler.transform(X_raw) if scaler else X_raw
-        X_3d        = X_scaled.reshape(1, 1, X_scaled.shape[1])
-        probs       = model.predict(X_3d, verbose=0)[0]
-        classes     = encoder.classes_ if encoder else [str(i) for i in range(len(probs))]
-        pred_idx    = int(np.argmax(probs))
-        ai_category = classes[pred_idx]
-        prob_dict   = {c: round(float(p) * 100) for c, p in zip(classes, probs)}
-
-    elif mtype == "svm":
+    if mtype == "svm":
         X_scaled     = scaler.transform(X_raw) if scaler else X_raw
         pred_encoded = model.predict(X_scaled)[0]
         ai_category  = encoder.inverse_transform([pred_encoded])[0] if encoder else str(pred_encoded)
@@ -333,8 +300,6 @@ st.markdown("""
         border-radius: 16px 16px 0 0;
     }
     .result-card.math-card::after { background: linear-gradient(90deg,#3b82f6,#60a5fa); }
-    .result-card.ai-card-rf::after   { background: linear-gradient(90deg,#3b82f6,#60a5fa); }
-    .result-card.ai-card-lstm::after { background: linear-gradient(90deg,#8b5cf6,#a78bfa); }
     .result-card.ai-card-svm::after  { background: linear-gradient(90deg,#10b981,#34d399); }
 
     .card-label { font-family:'Inter',sans-serif; color:rgba(200,210,230,.6); font-size:.78rem; text-transform:uppercase; letter-spacing:1.5px; font-weight:500; margin-bottom:.3rem; }
@@ -462,22 +427,12 @@ st.markdown("""
 
 
 # ============================================================
-# MODEL SELECTOR
+# ACTIVE MODEL DISPLAY
 # ============================================================
 
-st.markdown('<div class="section-header">🤖 Select AI Model</div>', unsafe_allow_html=True)
-
-model_names = list(MODELS.keys())
-selected_model = st.radio(
-    label="model_selector",
-    options=model_names,
-    format_func=lambda x: f"{MODELS[x]['icon']}  {x}  —  {MODELS[x]['desc']}",
-    horizontal=True,
-    label_visibility="collapsed",
-)
-
-# Active model info pill
+selected_model = "SVM"
 info = MODELS[selected_model]
+
 st.markdown(
     f'<div style="background:rgba(30,41,59,.5);border:1px solid {info["color"]}40;border-radius:10px;'
     f'padding:.6rem 1rem;margin-bottom:1.2rem;display:flex;align-items:center;gap:.6rem;">'
@@ -835,20 +790,10 @@ else:
     </div>
 
     <div style="display:flex; justify-content:center; gap:2rem; margin-top:3rem; flex-wrap:wrap;">
-        <div style="background:rgba(30,41,59,.3);border:1px solid rgba(59,130,246,.15);border-radius:16px;padding:1.5rem 2rem;text-align:center;width:200px;">
-            <div style="font-size:2rem; margin-bottom:.5rem;">🌲</div>
-            <div style="font-family:'Inter',sans-serif;color:#60a5fa;font-size:.9rem;font-weight:600;">Random Forest</div>
-            <div style="font-family:'Inter',sans-serif;color:rgba(200,210,230,.3);font-size:.75rem;margin-top:.3rem;">Rolling Window CV</div>
-        </div>
-        <div style="background:rgba(30,41,59,.3);border:1px solid rgba(167,139,250,.15);border-radius:16px;padding:1.5rem 2rem;text-align:center;width:200px;">
-            <div style="font-size:2rem; margin-bottom:.5rem;">🧠</div>
-            <div style="font-family:'Inter',sans-serif;color:#a78bfa;font-size:.9rem;font-weight:600;">LSTM Neural Net</div>
-            <div style="font-family:'Inter',sans-serif;color:rgba(200,210,230,.3);font-size:.75rem;margin-top:.3rem;">Rolling Window CV</div>
-        </div>
         <div style="background:rgba(30,41,59,.3);border:1px solid rgba(52,211,153,.15);border-radius:16px;padding:1.5rem 2rem;text-align:center;width:200px;">
             <div style="font-size:2rem; margin-bottom:.5rem;">⚡</div>
             <div style="font-family:'Inter',sans-serif;color:#34d399;font-size:.9rem;font-weight:600;">Support Vector</div>
-            <div style="font-family:'Inter',sans-serif;color:rgba(200,210,230,.3);font-size:.75rem;margin-top:.3rem;">Rolling Window CV</div>
+            <div style="font-family:'Inter',sans-serif;color:rgba(200,210,230,.3);font-size:.75rem;margin-top:.3rem;">Rolling Window</div>
         </div>
     </div>
     """, unsafe_allow_html=True)
