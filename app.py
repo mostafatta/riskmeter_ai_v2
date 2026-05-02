@@ -26,11 +26,11 @@ st.set_page_config(page_title="Riskless Asset Management", page_icon="📈", lay
 # ============================================================
 # Create 3 columns to center the image. 
 # Make sure your image is saved as 'logo.png' in the same folder as app.py
-col1, col2, col3 = st.columns([1, 2, 1])
+col1, col2, col3 = st.columns([1, 1, 1])
 with col2:
     logo_path = os.path.join(BASE_DIR, "logo.png")
     if os.path.exists(logo_path):
-        st.image(logo_path, use_container_width=True)
+        st.image(logo_path, width=250)
     else:
         st.warning("⚠️ Please save your image as 'logo.png' in the same folder to see it here.")
 
