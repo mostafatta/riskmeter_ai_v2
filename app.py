@@ -22,17 +22,21 @@ except ModuleNotFoundError:
 st.set_page_config(page_title="Riskless Asset Management", page_icon="📈", layout="centered")
 
 # ============================================================
-# LOGO INJECTION
+# LOGO INJECTION — Centered via HTML wrapper
 # ============================================================
-# Create 3 columns to center the image. 
-# Make sure your image is saved as 'logo.png' in the same folder as app.py
-col1, col2, col3 = st.columns([1, 1, 1])
-with col2:
-    logo_path = os.path.join(BASE_DIR, "logo.png")
-    if os.path.exists(logo_path):
-        st.image(logo_path, width=250)
-    else:
-        st.warning("⚠️ Please save your image as 'logo.png' in the same folder to see it here.")
+logo_path = os.path.join(BASE_DIR, "logo.png")
+if os.path.exists(logo_path):
+    import base64
+    with open(logo_path, "rb") as f:
+        logo_b64 = base64.b64encode(f.read()).decode()
+    st.markdown(
+        f'<div style="display:flex;justify-content:center;align-items:center;margin-bottom:1rem;">'
+        f'<img src="data:image/png;base64,{logo_b64}" width="250"/>'
+        f'</div>',
+        unsafe_allow_html=True
+    )
+else:
+    st.warning("⚠️ Please save your image as 'logo.png' in the same folder to see it here.")
 
 # ============================================================
 # MODEL REGISTRY — SVM Only
